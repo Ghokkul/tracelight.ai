@@ -1,0 +1,654 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Brain Dump — Capture. AI sorts.</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --cream:      #F5F0E8;
+      --paper:      #FDFAF4;
+      --ink:        #1C1410;
+      --ink-soft:   #2C2418;
+      --muted:      #7A6F65;
+      --faint:      #B0A89E;
+      --fainter:    #C0B8AE;
+      --border:     #E0D9CE;
+      --border-in:  #EDE8DF;
+      --rule:       #D8D0C4;
+
+      --task-color: #2D6A4F;
+      --task-bg:    #D8F3DC;
+      --task-dot:   #40916C;
+      --idea-color: #7B4F00;
+      --idea-bg:    #FFF1CC;
+      --idea-dot:   #F4A100;
+      --note-color: #1A3A5C;
+      --note-bg:    #D6E8F7;
+      --note-dot:   #2D6FA4;
+    }
+
+    html, body {
+      min-height: 100vh;
+      background: var(--cream);
+      font-family: 'DM Sans', sans-serif;
+      color: var(--ink-soft);
+    }
+
+    /* Grain overlay */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");
+    }
+
+    #app {
+      position: relative;
+      z-index: 1;
+      max-width: 660px;
+      margin: 0 auto;
+      padding: 56px 28px 100px;
+    }
+
+    /* ── Header ── */
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 20px;
+      margin-bottom: 28px;
+    }
+
+    h1 {
+      font-family: 'DM Serif Display', serif;
+      font-size: 36px;
+      font-weight: 400;
+      color: var(--ink);
+      letter-spacing: -0.02em;
+      margin-bottom: 10px;
+    }
+
+    .desc {
+      font-size: 14.5px;
+      line-height: 1.65;
+      color: var(--muted);
+      max-width: 440px;
+      font-weight: 300;
+    }
+
+    .hotkey-badge {
+      flex-shrink: 0;
+      padding-top: 4px;
+    }
+
+    .hotkey-badge span {
+      font-size: 11px;
+      letter-spacing: 0.05em;
+      color: #A89E92;
+      background: #EDE8DF;
+      border: 1px solid var(--rule);
+      border-radius: 6px;
+      padding: 5px 10px;
+      white-space: nowrap;
+      box-shadow: 0 1px 0 #C8BDB0;
+      display: inline-block;
+    }
+
+    .rule {
+      height: 1px;
+      background: linear-gradient(90deg, var(--rule) 0%, transparent 100%);
+      margin-bottom: 32px;
+    }
+
+    /* ── Input box ── */
+    .input-box {
+      background: var(--paper);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      box-shadow: 0 2px 12px rgba(90,60,20,0.06), 0 1px 3px rgba(90,60,20,0.04);
+      margin-bottom: 28px;
+      overflow: hidden;
+    }
+
+    #thought-input {
+      width: 100%;
+      display: block;
+      background: transparent;
+      border: none;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 15.5px;
+      font-weight: 300;
+      line-height: 1.65;
+      color: var(--ink);
+      padding: 20px 22px 14px;
+      resize: none;
+      outline: none;
+    }
+
+    #thought-input::placeholder { color: #B8AFA0; }
+
+    .input-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 16px 14px;
+      border-top: 1px solid var(--border-in);
+    }
+
+    #input-hint {
+      font-size: 12px;
+      color: var(--faint);
+      letter-spacing: 0.01em;
+    }
+
+    #submit-btn {
+      background: var(--ink-soft);
+      color: var(--cream);
+      border: none;
+      border-radius: 8px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 13.5px;
+      font-weight: 500;
+      letter-spacing: 0.02em;
+      padding: 9px 20px;
+      cursor: pointer;
+      box-shadow: 0 2px 8px rgba(44,36,24,0.2);
+      transition: transform 0.12s, box-shadow 0.12s;
+    }
+
+    #submit-btn:hover:not(:disabled) {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 14px rgba(90,60,20,0.18);
+    }
+
+    #submit-btn:active:not(:disabled) { transform: translateY(0); }
+    #submit-btn:disabled { opacity: 0.38; cursor: not-allowed; }
+
+    /* ── Filters ── */
+    .filters {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+
+    .filter-btn {
+      border: 1px solid transparent;
+      border-radius: 20px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 13px;
+      padding: 5px 14px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: transparent;
+      cursor: pointer;
+      color: var(--faint);
+      transition: all 0.15s;
+      font-weight: 400;
+    }
+
+    .filter-btn:hover { opacity: 0.8; }
+
+    .filter-btn.active-all    { background: #EDE8DF; color: #3D3028; border-color: #C8BDB0; font-weight: 500; }
+    .filter-btn.active-task   { background: var(--task-bg); color: var(--task-color); border-color: var(--task-dot); font-weight: 500; }
+    .filter-btn.active-idea   { background: var(--idea-bg); color: var(--idea-color); border-color: var(--idea-dot); font-weight: 500; }
+    .filter-btn.active-note   { background: var(--note-bg); color: var(--note-color); border-color: var(--note-dot); font-weight: 500; }
+
+    .count-badge { font-size: 11px; font-weight: 400; }
+
+    /* ── List ── */
+    #list { display: flex; flex-direction: column; gap: 10px; }
+
+    .bd-item {
+      background: var(--paper);
+      border: 1px solid #E8E1D6;
+      border-radius: 10px;
+      box-shadow: 0 1px 4px rgba(90,60,20,0.05);
+      display: flex;
+      overflow: hidden;
+      animation: slideDown 0.35s cubic-bezier(.22,.68,0,1.2) both;
+    }
+
+    .bd-item:hover .bd-actions { opacity: 1; }
+
+    @keyframes slideDown {
+      from { opacity: 0; transform: translateY(-10px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to   { opacity: 1; }
+    }
+
+    @keyframes shimmer {
+      0%, 100% { opacity: 0.35; }
+      50%       { opacity: 0.75; }
+    }
+
+    .item-stripe {
+      width: 4px;
+      flex-shrink: 0;
+      transition: background 0.2s;
+    }
+
+    .item-body { flex: 1; padding: 14px 16px; }
+
+    .item-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+
+    .item-text {
+      font-size: 14.5px;
+      line-height: 1.6;
+      color: var(--ink-soft);
+      flex: 1;
+      font-weight: 300;
+    }
+
+    .item-text.pending { opacity: 0.5; }
+
+    .bd-actions {
+      display: flex;
+      gap: 6px;
+      flex-shrink: 0;
+      opacity: 0;
+      transition: opacity 0.18s;
+    }
+
+    .del-btn {
+      background: transparent;
+      border: 1px solid #DDD6CC;
+      border-radius: 6px;
+      cursor: pointer;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 12px;
+      color: #C0B8AE;
+      padding: 2px 8px;
+      transition: all 0.15s;
+      white-space: nowrap;
+    }
+
+    .del-btn.confirm { border-color: #C0392B; color: #C0392B; }
+
+    .item-bottom {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .pill-row {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      flex-wrap: wrap;
+    }
+
+    .cat-pill {
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 12px;
+      padding: 3px 10px;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      cursor: pointer;
+      background: transparent;
+      color: var(--faint);
+      transition: background 0.15s, color 0.15s, border-color 0.15s;
+    }
+
+    .cat-pill:hover { filter: brightness(0.93); }
+
+    .cat-pill.active-task { background: var(--task-bg); color: var(--task-color); border-color: var(--task-dot); font-weight: 500; }
+    .cat-pill.active-idea { background: var(--idea-bg); color: var(--idea-color); border-color: var(--idea-dot); font-weight: 500; }
+    .cat-pill.active-note { background: var(--note-bg); color: var(--note-color); border-color: var(--note-dot); font-weight: 500; }
+
+    .cat-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      display: none;
+    }
+
+    .cat-pill.active-task .cat-dot,
+    .cat-pill.active-idea .cat-dot,
+    .cat-pill.active-note .cat-dot { display: inline-block; }
+
+    .cat-pill.active-task .cat-dot { background: var(--task-dot); }
+    .cat-pill.active-idea .cat-dot { background: var(--idea-dot); }
+    .cat-pill.active-note .cat-dot { background: var(--note-dot); }
+
+    .item-reason {
+      font-size: 11.5px;
+      color: var(--faint);
+      font-style: italic;
+      max-width: 220px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .item-ts {
+      font-size: 11.5px;
+      color: var(--fainter);
+      white-space: nowrap;
+      flex-shrink: 0;
+      margin-left: auto;
+    }
+
+    .pending-label {
+      font-size: 12px;
+      color: var(--faint);
+      font-style: italic;
+      animation: shimmer 1.4s ease-in-out infinite;
+    }
+
+    /* ── Empty ── */
+    #empty {
+      text-align: center;
+      padding: 64px 20px;
+      color: var(--fainter);
+      font-size: 14px;
+      line-height: 1.8;
+      animation: fadeIn 0.4s ease;
+      display: none;
+    }
+
+    #empty .empty-icon { font-size: 28px; margin-bottom: 14px; opacity: 0.4; }
+
+    /* ── Footer ── */
+    #footer {
+      margin-top: 40px;
+      text-align: center;
+      font-size: 12px;
+      color: var(--fainter);
+      letter-spacing: 0.02em;
+    }
+
+    /* ── Responsive ── */
+    @media (max-width: 480px) {
+      #app { padding: 32px 16px 80px; }
+      h1 { font-size: 28px; }
+      .hotkey-badge { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+
+    <header>
+      <div>
+        <h1>Brain Dump</h1>
+        <p class="desc">
+          A friction-free inbox for your mind. Type a thought in seconds —
+          AI quietly sorts it into tasks, ideas, and notes so your head stays clear.
+        </p>
+      </div>
+      <div class="hotkey-badge" title="Focus shortcut">
+        <span>⌘ ⇧ Space</span>
+      </div>
+    </header>
+
+    <div class="rule"></div>
+
+    <div class="input-box">
+      <textarea
+        id="thought-input"
+        placeholder="What's on your mind? Press Enter to capture it…"
+        rows="3"
+        autofocus
+      ></textarea>
+      <div class="input-row">
+        <span id="input-hint">AI will classify it automatically</span>
+        <button id="submit-btn" disabled>Capture</button>
+      </div>
+    </div>
+
+    <div class="filters">
+      <button class="filter-btn active-all" data-filter="all">All <span class="count-badge" id="count-all">0</span></button>
+      <button class="filter-btn" data-filter="task">Task <span class="count-badge" id="count-task">0</span></button>
+      <button class="filter-btn" data-filter="idea">Idea <span class="count-badge" id="count-idea">0</span></button>
+      <button class="filter-btn" data-filter="note">Note <span class="count-badge" id="count-note">0</span></button>
+    </div>
+
+    <div id="list"></div>
+    <div id="empty">
+      <div class="empty-icon">✦</div>
+      <p>Nothing here yet.<br>Start capturing thoughts above.</p>
+    </div>
+
+    <p id="footer"></p>
+  </div>
+
+  <script>
+    // ── State ─────────────────────────────────────────────────────────────────
+    const CATS = {
+      task: { label: "Task", dotColor: "#40916C" },
+      idea: { label: "Idea", dotColor: "#F4A100" },
+      note: { label: "Note", dotColor: "#2D6FA4" },
+    };
+
+    let items = [
+      { id: 1, text: "Send the updated proposal to Marcus before EOD",                                     category: "task", ts: Date.now() - 7200000,  reason: "Clear action with a deadline and recipient.", pending: false },
+      { id: 2, text: "What if the onboarding flow started with a single question instead of a form?",      category: "idea", ts: Date.now() - 18000000, reason: "Speculative reframing of an existing pattern.", pending: false },
+      { id: 3, text: "The average human attention span is now shorter than a goldfish — ~8 seconds",       category: "note", ts: Date.now() - 32400000, reason: "A fact worth remembering, no action needed.",   pending: false },
+    ];
+
+    let filter   = "all";
+    let busy     = false;
+    let uid      = 200;
+    let deleting = null;
+
+    // ── Helpers ───────────────────────────────────────────────────────────────
+    function ago(ts) {
+      const m = Math.floor((Date.now() - ts) / 60000);
+      if (m < 1)    return "just now";
+      if (m < 60)   return `${m}m ago`;
+      if (m < 1440) return `${Math.floor(m / 60)}h ago`;
+      return `${Math.floor(m / 1440)}d ago`;
+    }
+
+    async function classify(text) {
+      try {
+        const res = await fetch("https://api.anthropic.com/v1/messages", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            model: "claude-sonnet-4-20250514",
+            max_tokens: 120,
+            messages: [{
+              role: "user",
+              content: `Classify this thought into exactly one of: "task", "idea", or "note".
+- task: requires action, has a verb, something to do or follow up on
+- idea: creative, speculative, "what if", improvement suggestion
+- note: fact, reference, observation, quote — information to remember
+
+Thought: "${text}"
+
+Reply ONLY with JSON (no markdown): {"category":"task","reason":"one sentence"}`
+            }]
+          })
+        });
+        const d = await res.json();
+        const raw = d.content?.[0]?.text || '{"category":"note","reason":""}';
+        return JSON.parse(raw.replace(/```json|```/g, "").trim());
+      } catch {
+        return { category: "note", reason: "" };
+      }
+    }
+
+    // ── DOM refs ──────────────────────────────────────────────────────────────
+    const textarea   = document.getElementById("thought-input");
+    const submitBtn  = document.getElementById("submit-btn");
+    const hintEl     = document.getElementById("input-hint");
+    const listEl     = document.getElementById("list");
+    const emptyEl    = document.getElementById("empty");
+    const footerEl   = document.getElementById("footer");
+
+    // ── Render ────────────────────────────────────────────────────────────────
+    function render() {
+      const shown = items.filter(i => filter === "all" || i.category === filter);
+
+      // counts
+      const counts = { all: items.length, task: 0, idea: 0, note: 0 };
+      items.forEach(i => { if (i.category) counts[i.category]++; });
+      ["all","task","idea","note"].forEach(k => {
+        document.getElementById(`count-${k}`).textContent = counts[k];
+      });
+
+      // filter buttons
+      document.querySelectorAll(".filter-btn").forEach(btn => {
+        const f = btn.dataset.filter;
+        btn.className = "filter-btn" + (filter === f ? ` active-${f}` : "");
+      });
+
+      // empty state
+      emptyEl.style.display = shown.length === 0 ? "block" : "none";
+
+      // list
+      listEl.innerHTML = "";
+      shown.forEach((item, idx) => {
+        const cat = item.category ? CATS[item.category] : null;
+        const stripeColor = cat ? cat.dotColor : "#D4C9BC";
+
+        const div = document.createElement("div");
+        div.className = "bd-item";
+        div.dataset.id = item.id;
+        div.style.animationDelay = `${idx * 0.04}s`;
+
+        div.innerHTML = `
+          <div class="item-stripe" style="background:${stripeColor};opacity:${item.pending ? 0.3 : 1}"></div>
+          <div class="item-body">
+            <div class="item-top">
+              <p class="item-text${item.pending ? " pending" : ""}">${escHtml(item.text)}</p>
+              <div class="bd-actions">
+                <button class="del-btn${deleting === item.id ? " confirm" : ""}" data-action="delete" data-id="${item.id}">
+                  ${deleting === item.id ? "Delete?" : "×"}
+                </button>
+              </div>
+            </div>
+            <div class="item-bottom">
+              ${item.pending
+                ? `<span class="pending-label">Classifying…</span>`
+                : `<div class="pill-row">
+                    ${Object.entries(CATS).map(([k, c]) => `
+                      <button class="cat-pill${item.category === k ? ` active-${k}` : ""}" data-action="recategorize" data-id="${item.id}" data-cat="${k}">
+                        <span class="cat-dot"></span>${c.label}
+                      </button>`).join("")}
+                    ${item.reason ? `<span class="item-reason" title="${escHtml(item.reason)}">— ${escHtml(item.reason)}</span>` : ""}
+                  </div>`
+              }
+              <span class="item-ts">${ago(item.ts)}</span>
+            </div>
+          </div>
+        `;
+        listEl.appendChild(div);
+      });
+
+      // footer
+      footerEl.textContent = items.length > 0
+        ? `${items.length} thought${items.length !== 1 ? "s" : ""} captured · click a label to reclassify`
+        : "";
+    }
+
+    function escHtml(str) {
+      return str.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+    }
+
+    // ── Submit ────────────────────────────────────────────────────────────────
+    async function submit() {
+      const text = textarea.value.trim();
+      if (!text || busy) return;
+      textarea.value = "";
+      hintEl.textContent = "AI will classify it automatically";
+      submitBtn.disabled = true;
+      busy = true;
+
+      const id = uid++;
+      items.unshift({ id, text, category: null, ts: Date.now(), reason: null, pending: true });
+      render();
+
+      const { category, reason } = await classify(text);
+      const idx = items.findIndex(i => i.id === id);
+      if (idx !== -1) items[idx] = { ...items[idx], category, reason, pending: false };
+
+      busy = false;
+      submitBtn.disabled = false;
+      render();
+      textarea.focus();
+    }
+
+    // ── Events ────────────────────────────────────────────────────────────────
+    textarea.addEventListener("input", () => {
+      const len = textarea.value.length;
+      submitBtn.disabled = len === 0 || busy;
+      hintEl.textContent = len > 0 ? `${len} chars · Enter ↵ to dump` : "AI will classify it automatically";
+    });
+
+    textarea.addEventListener("keydown", e => {
+      if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); submit(); }
+    });
+
+    submitBtn.addEventListener("click", submit);
+
+    // Delegated clicks on list
+    listEl.addEventListener("click", e => {
+      const btn = e.target.closest("[data-action]");
+      if (!btn) return;
+      const id  = parseInt(btn.dataset.id);
+      const act = btn.dataset.action;
+
+      if (act === "delete") {
+        if (deleting === id) {
+          items = items.filter(i => i.id !== id);
+          deleting = null;
+        } else {
+          deleting = id;
+          setTimeout(() => { if (deleting === id) { deleting = null; render(); } }, 2200);
+        }
+        render();
+      }
+
+      if (act === "recategorize") {
+        const cat = btn.dataset.cat;
+        items = items.map(i => i.id === id ? { ...i, category: cat, reason: "Manually updated." } : i);
+        render();
+      }
+    });
+
+    // Filter buttons
+    document.querySelectorAll(".filter-btn").forEach(btn => {
+      btn.addEventListener("click", () => { filter = btn.dataset.filter; render(); });
+    });
+
+    // Global hotkey
+    window.addEventListener("keydown", e => {
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.code === "Space") {
+        e.preventDefault();
+        textarea.focus();
+      }
+    });
+
+    // ── Init ──────────────────────────────────────────────────────────────────
+    render();
+  </script>
+</body>
+</html>
